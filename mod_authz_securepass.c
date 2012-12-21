@@ -1,9 +1,7 @@
 /*
- * Modifica di mod_authz_unixgroup.c per controllare il permesso
+ * Modifica di mod_authz_unixrealm.c per controllare il permesso
  * con i gruppi di securepass
  * Author: Alessandro Lorenzi <alessandro.lorenzi@garl.ch>
- *
- * 
  *
  * */
 
@@ -37,23 +35,22 @@
  * Structure for the module itself.  The actual definition of this structure
  * is at the end of the file.
  */
-module AP_MODULE_DECLARE_DATA authz_securepassgroup_module;
+module AP_MODULE_DECLARE_DATA authz_securepassrealm_module;
 
-/* A handle for retrieving the requested file's group from mod_authnz_owner */
-APR_DECLARE_OPTIONAL_FN(char*, authz_owner_get_file_group, (request_rec *r));
+/* A handle for retrieving the requested file's realm from mod_authnz_owner */
+APR_DECLARE_OPTIONAL_FN(char*, authz_owner_get_file_realm, (request_rec *r));
 
 
-/* Check if the named user is in the given list of groups.  The list of
- * groups is a string with groups separated by white space.  Group ids
- * can either be unix group names or numeric group id numbers.  There must
+/* Check if the named user is in the given list of realms.  The list of
+ * realms is a string with realms separated by white space.  realm ids
+ * can either be unix realm names or numeric realm id numbers.  There must
  * be a unix login corresponding to the named user.
  */
 
-static int check_securepass_group(request_rec *r, const char *grouplist)
+static int check_securepass_realm(request_rec *r, const char *realmlist)
 {
     // Al posto di questo fare il match del nome.
     char **p;
-    struct group *grp;
     char *user= r->user;
     char *realm,*w, *at;
 
@@ -61,11 +58,11 @@ static int check_securepass_group(request_rec *r, const char *grouplist)
 	realm=strchr(str,'@');
 	realm++;
 	
-    /* Loop through list of groups passed in */
-    while (*grouplist != '\0')
+    /* Loop through list of realms passed in */
+    while (*realmlist != '\0')
     {
 		// controlla la lista dei gruppi nella configurazione.
-		w= ap_getword_conf(r->pool, &grouplist);
+		w= ap_getword_conf(r->pool, &realmlist);
 		// in w dovrebbe esserci il gruppo autorizzato
 		// devo vedere se realm e w sono uguali
 
@@ -83,18 +80,18 @@ static int check_securepass_group(request_rec *r, const char *grouplist)
 
 
 
-static authz_status securepassgroup_check_authorization(request_rec *r,
+static authz_status securepassrealm_check_authorization(request_rec *r,
         const char *require_args, const void *parsed_require_args)
 {
     /* If no authenticated user, pass */
     if ( !r->user ) return AUTHZ_DENIED_NO_USER;
 
-    if (check_securepass_group(r,require_args))
+    if (check_securepass_realm(r,require_args))
 	return AUTHZ_GRANTED;
 
     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
         "Authorization of user %s to access %s failed. "
-        "User not in Required securepass groups (%s).",
+        "User not in Required securepass realms (%s).",
         r->user, r->uri, require_args);
 
     return AUTHZ_DENIED;
@@ -103,67 +100,67 @@ static authz_status securepassgroup_check_authorization(request_rec *r,
 
 /*   da qui in poi dovrebbe riguardare i file, quindi... ¿¿??  */
 
-APR_OPTIONAL_FN_TYPE(authz_ownsecurepasser_get_file_group) *authz_owner_get_file_group;
+APR_OPTIONAL_FN_TYPE(authz_ownsecurepasser_get_file_realm) *authz_owner_get_file_realm;
 
-static authz_status securepassfilegroup_check_authorization(request_rec *r,
+static authz_status securepassfilerealm_check_authorization(request_rec *r,
         const char *require_args, const void *parsed_require_args)
 {
-    const char *filegroup= NULL;
+    const char *filerealm= NULL;
 
     /* If no authenticated user, pass */
     if ( !r->user ) return AUTHZ_DENIED_NO_USER;
 
-    /* Get group name for requested file from mod_authz_owner */
-    filegroup= authz_owner_get_file_group(r);
+    /* Get realm name for requested file from mod_authz_owner */
+    filerealm= authz_owner_get_file_realm(r);
 
-    if (!filegroup)
+    if (!filerealm)
         /* No errog log entry, because mod_authz_owner already made one */
         return AUTHZ_DENIED;
 
-    if (check_securepass_group(r,filegroup))
+    if (check_securepass_realm(r,filerealm))
 	return AUTHZ_GRANTED;
     
     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
         "Authorization of user %s to access %s failed. "
-        "User not in Required securepass file group (%s).",
-        r->user, r->uri, filegroup);
+        "User not in Required securepass file realm (%s).",
+        r->user, r->uri, filerealm);
 
     return AUTHZ_DENIED;
 }
 
-static const authz_provider authz_securepassgroup_provider =
+static const authz_provider authz_securepassrealm_provider =
 {
-    &securepassgroup_check_authorization,
+    &securepassrealm_check_authorization,
     NULL,
 };
 
-static const authz_provider authz_securepassfilegroup_provider =
+static const authz_provider authz_securepassfilerealm_provider =
 {
-    &securepassfilegroup_check_authorization,
+    &securepassfilerealm_check_authorization,
     NULL,
 };
 
-static void authz_securepassgroup_register_hooks(apr_pool_t *p)
+static void authz_securepassrealm_register_hooks(apr_pool_t *p)
 {
     /* Get a handle on mod_authz_owner */
-    authz_owner_get_file_group = APR_RETRIEVE_OPTIONAL_FN(authz_owner_get_file_group);
+    authz_owner_get_file_realm = APR_RETRIEVE_OPTIONAL_FN(authz_owner_get_file_realm);
 
     /* Register authz providers */
-    ap_register_auth_provider(p, AUTHZ_PROVIDER_GROUP, "securepass-group",
+    ap_register_auth_provider(p, AUTHZ_PROVIDER_REALM, "securepass-realm",
             AUTHZ_PROVIDER_VERSION,
-            &authz_securepassgroup_provider, AP_AUTH_INTERNAL_PER_CONF);
+            &authz_securepassrealm_provider, AP_AUTH_INTERNAL_PER_CONF);
 
-    ap_register_auth_provider(p, AUTHZ_PROVIDER_GROUP, "securepass-file-group",
+    ap_register_auth_provider(p, AUTHZ_PROVIDER_REALM, "securepass-file-realm",
             AUTHZ_PROVIDER_VERSION,
-            &authz_securepassfilegroup_provider, AP_AUTH_INTERNAL_PER_CONF);
+            &authz_securepassfilerealm_provider, AP_AUTH_INTERNAL_PER_CONF);
 }
     
-module AP_MODULE_DECLARE_DATA authz_securepassgroup_module = {
+module AP_MODULE_DECLARE_DATA authz_securepassrealm_module = {
     STANDARD20_MODULE_STUFF,
     NULL,				  /* create per-dir config */
     NULL,			          /* merge per-dir config */
     NULL,			          /* create per-server config */
     NULL,			          /* merge per-server config */
     NULL,		         	  /* command apr_table_t */
-    authz_securepassgroup_register_hooks        /* register hooks */
+    authz_securepassrealm_register_hooks        /* register hooks */
 };
