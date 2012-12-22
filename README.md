@@ -1,4 +1,5 @@
-= Apache authorization module for SecurePass =
+Apache authorization module for SecurePass
+==========================================
 
 This is an Apache (2.2) module for authorizing SecurePass users.
 SecurePass provides web single sign-on through the CAS protocol.
