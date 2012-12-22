@@ -1,5 +1,3 @@
-/* Copyright 2008 Jan Wolter - See LICENSE and NOTICE */
-
 #include "apr_lib.h"
 
 #include "ap_config.h"
@@ -32,8 +30,57 @@
  */
 module AP_MODULE_DECLARE_DATA authz_unixgroup_module;
 
-/* A handle for retrieving the requested file's group from mod_authnz_owner */
-APR_DECLARE_OPTIONAL_FN(char*, authz_owner_get_file_group, (request_rec *r));
+/*
+ *  Data type for per-directory configuration
+ */
+
+typedef struct
+{
+    int  enabled;
+    int  authoritative;
+
+} authz_unixgroup_dir_config_rec;
+
+
+/*
+ * Creator for per-dir configurations.  This is called via the hook in the
+ * module declaration to allocate and initialize the per-directory
+ * configuration data structures declared above.
+ */
+
+static void *create_authz_unixgroup_dir_config(apr_pool_t *p, char *d)
+{
+    authz_unixgroup_dir_config_rec *dir= (authz_unixgroup_dir_config_rec *)
+	apr_palloc(p, sizeof(authz_unixgroup_dir_config_rec));
+
+    dir->enabled= 0;
+    dir->authoritative= 1;	/* strong by default */
+
+    return dir;
+}
+
+
+/*
+ * Config file commands that this module can handle
+ */
+
+static const command_rec authz_unixgroup_cmds[] =
+{
+    AP_INIT_FLAG("AuthzUnixgroup",
+	ap_set_flag_slot,
+	(void *)APR_OFFSETOF(authz_unixgroup_dir_config_rec, enabled),
+	OR_AUTHCFG,
+	"Set to 'on' to enable unix group checking"),
+
+    AP_INIT_FLAG("AuthzUnixgroupAuthoritative",
+	ap_set_flag_slot,
+	(void *)APR_OFFSETOF(authz_unixgroup_dir_config_rec, authoritative),
+	OR_AUTHCFG,
+	"Set to 'off' to allow access control to be passed along to lower "
+	    "modules if this module can't confirm access rights" ),
+
+    { NULL }
+};
 
 
 /* Check if the named user is in the given list of groups.  The list of
@@ -44,7 +91,6 @@ APR_DECLARE_OPTIONAL_FN(char*, authz_owner_get_file_group, (request_rec *r));
 
 static int check_unix_group(request_rec *r, const char *grouplist)
 {
-    // Al posto di questo fare il match del nome.
     char **p;
     struct group *grp;
     char *user= r->user;
@@ -69,7 +115,7 @@ static int check_unix_group(request_rec *r, const char *grouplist)
     /* Loop through list of groups passed in */
     while (*grouplist != '\0')
     {
-	w= ap_getword_conf(r->pool, &grouplist);
+	w= ap_getword_white(r->pool, &grouplist);
 	if (apr_isdigit(w[0]))
 	{
 	    /* Numeric group id */
@@ -114,84 +160,92 @@ static int check_unix_group(request_rec *r, const char *grouplist)
     return 0;
 }
 
-static authz_status unixgroup_check_authorization(request_rec *r,
-        const char *require_args, const void *parsed_require_args)
+
+static int authz_unixgroup_check_user_access(request_rec *r) 
 {
-    /* If no authenticated user, pass */
-    if ( !r->user ) return AUTHZ_DENIED_NO_USER;
+    authz_unixgroup_dir_config_rec *dir= (authz_unixgroup_dir_config_rec *)
+	ap_get_module_config(r->per_dir_config, &authz_unixgroup_module);
 
-    if (check_unix_group(r,require_args))
-	return AUTHZ_GRANTED;
-
-    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
-        "Authorization of user %s to access %s failed. "
-        "User not in Required unix groups (%s).",
-        r->user, r->uri, require_args);
-
-    return AUTHZ_DENIED;
-}
-
-APR_OPTIONAL_FN_TYPE(authz_owner_get_file_group) *authz_owner_get_file_group;
-
-static authz_status unixfilegroup_check_authorization(request_rec *r,
-        const char *require_args, const void *parsed_require_args)
-{
+    int m= r->method_number;
+    int required_group= 0;
+    register int x;
+    const char *t, *w;
+    const apr_array_header_t *reqs_arr= ap_requires(r);
     const char *filegroup= NULL;
+    require_line *reqs;
 
-    /* If no authenticated user, pass */
-    if ( !r->user ) return AUTHZ_DENIED_NO_USER;
+    /* If not enabled, pass */
+    if ( !dir->enabled ) return DECLINED;
 
-    /* Get group name for requested file from mod_authz_owner */
-    filegroup= authz_owner_get_file_group(r);
+    /* If there are no Require arguments, pass */
+    if (!reqs_arr) return DECLINED;
+    reqs=  (require_line *)reqs_arr->elts;
 
-    if (!filegroup)
-        /* No errog log entry, because mod_authz_owner already made one */
-        return AUTHZ_DENIED;
+    /* Loop through the "Require" argument list */
+    for(x= 0; x < reqs_arr->nelts; x++)
+    {
+	if (!(reqs[x].method_mask & (AP_METHOD_BIT << m))) continue;
 
-    if (check_unix_group(r,filegroup))
-	return AUTHZ_GRANTED;
+	t= reqs[x].requirement;
+	w= ap_getword_white(r->pool, &t);
+
+	/* The 'file-group' directive causes mod_authz_owner to store the
+	 * group name of the file we are trying to access in a note attached
+	 * to the request.  It's our job to decide if the user actually is
+	 * in that group.  If the note is missing, we just ignore it.
+	 * Probably mod_authz_owner is not installed.
+	 */
+	if ( !strcasecmp(w, "file-group"))
+	{
+	    filegroup= apr_table_get(r->notes, AUTHZ_GROUP_NOTE);
+	    if (filegroup == NULL) continue;
+	}
+
+	if ( !strcmp(w,"group") || filegroup != NULL)
+	{
+	    required_group= 1;
+
+	    if (filegroup)
+	    {
+		/* Check if user is in the group that owns the file */
+		if (check_unix_group(r,filegroup))
+		    return OK;
+	    }
+	    else if (t[0])
+	    {
+		/* Pass rest of require line to authenticator */
+		if (check_unix_group(r,t))
+		    return OK;
+	    }
+	}
+    }
     
+    /* If we didn't see a 'require group' or aren't authoritive, decline */
+    if (!required_group || !dir->authoritative)
+	return DECLINED;
+
+    /* Authentication failed and we are authoritive, declare unauthorized */
     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
-        "Authorization of user %s to access %s failed. "
-        "User not in Required unix file group (%s).",
-        r->user, r->uri, filegroup);
+    	"access to %s failed, reason: user %s not allowed access",
+    	r->uri, r->user);
 
-    return AUTHZ_DENIED;
+    ap_note_basic_auth_failure(r);
+    return HTTP_UNAUTHORIZED;
 }
-
-static const authz_provider authz_unixgroup_provider =
-{
-    &unixgroup_check_authorization,
-    NULL,
-};
-
-static const authz_provider authz_unixfilegroup_provider =
-{
-    &unixfilegroup_check_authorization,
-    NULL,
-};
 
 static void authz_unixgroup_register_hooks(apr_pool_t *p)
 {
-    /* Get a handle on mod_authz_owner */
-    authz_owner_get_file_group = APR_RETRIEVE_OPTIONAL_FN(authz_owner_get_file_group);
-
-    /* Register authz providers */
-    ap_register_auth_provider(p, AUTHZ_PROVIDER_GROUP, "unix-group",
-            AUTHZ_PROVIDER_VERSION,
-            &authz_unixgroup_provider, AP_AUTH_INTERNAL_PER_CONF);
-
-    ap_register_auth_provider(p, AUTHZ_PROVIDER_GROUP, "unix-file-group",
-            AUTHZ_PROVIDER_VERSION,
-            &authz_unixfilegroup_provider, AP_AUTH_INTERNAL_PER_CONF);
+    ap_hook_auth_checker(authz_unixgroup_check_user_access, NULL, NULL,
+	    APR_HOOK_MIDDLE);
 }
     
+
 module AP_MODULE_DECLARE_DATA authz_unixgroup_module = {
     STANDARD20_MODULE_STUFF,
-    NULL,				  /* create per-dir config */
+    create_authz_unixgroup_dir_config,	  /* create per-dir config */
     NULL,			          /* merge per-dir config */
     NULL,			          /* create per-server config */
     NULL,			          /* merge per-server config */
-    NULL,		         	  /* command apr_table_t */
+    authz_unixgroup_cmds,	          /* command apr_table_t */
     authz_unixgroup_register_hooks        /* register hooks */
 };
