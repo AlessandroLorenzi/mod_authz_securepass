@@ -15,6 +15,9 @@
 #include "http_protocol.h"
 #include "http_request.h"	/* for ap_hook_(check_user_id | auth_checker)*/
 
+#define AUTHZ_GRANTED 1
+#define AUTHZ_DENIED 0
+
 /*
  * Structure for the module itself.  The actual definition of this structure
  * is at the end of the file.
@@ -31,6 +34,41 @@ typedef struct
     int  authoritative;
 
 } authz_securepass_dir_config_rec;
+
+
+
+
+static int check_securepass_realm(request_rec *r, const char *realmlist)
+{
+    // Al posto di questo fare il match del nome.
+    char **p;
+    char *user= r->user;
+    char *realm,*w, *at;
+
+    
+	// estrapolo il realm dell'utente
+	realm=strchr(user,'@');
+	realm++;
+	
+    /* Loop through list of realms passed in */
+    while (*realmlist != '\0')
+    {
+		// controlla la lista dei gruppi nella configurazione.
+		w= ap_getword_conf(r->pool, &realmlist);
+		// in w dovrebbe esserci il gruppo autorizzato
+		// devo vedere se realm e w sono uguali
+
+		/* Walk through list of members, seeing if any match user login */
+		if (strcmp(realm,w)==0)
+		{
+			return 1;
+		}
+    }
+
+    /* Didn't find any matches, flunk him */
+    if (at != NULL) *at= '@';
+    return 0;
+}
 
 
 /*
@@ -99,6 +137,7 @@ static int authz_securepass_check_user_access(request_rec *r)
     const char *filegroup= NULL;
     require_line *reqs;
 
+
     /* If not enabled, pass */
     if ( !dir->enabled ) return DECLINED;
 
@@ -121,8 +160,15 @@ static int authz_securepass_check_user_access(request_rec *r)
 	if ( !strcasecmp(w, "sprealm"))
 	{
 	  /* dummy, check securepass realm */
-	}
+	  if (check_securepass_realm(r,t)){
+          printf("the check is ok\n");
+          return 1;
+        }
+         printf("the check is NOT ok\n");
 
+	}
+    return DECLINED;
+    
 	if ( !strcasecmp(w, "spgroup"))
 	{
 	  /* dummy, check securepass group */
@@ -188,3 +234,8 @@ module AP_MODULE_DECLARE_DATA authz_securepass_module = {
     authz_securepass_cmds,	          /* command apr_table_t */
     authz_securepass_register_hooks        /* register hooks */
 };
+
+
+
+
+
