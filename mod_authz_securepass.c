@@ -46,9 +46,9 @@ static int check_securepass_realm(request_rec *r, const char *realmlist)
     char *realm,*w, *at;
 
     
-	// estrapolo il realm dell'utente
-	realm=strchr(user,'@');
-	realm++;
+    // estrapolo il realm dell'utente
+    realm=strchr(user,'@');
+    realm++;
 	
     /* Loop through list of realms passed in */
     while (*realmlist != '\0')
@@ -57,6 +57,10 @@ static int check_securepass_realm(request_rec *r, const char *realmlist)
 		w= ap_getword_conf(r->pool, &realmlist);
 		// in w dovrebbe esserci il gruppo autorizzato
 		// devo vedere se realm e w sono uguali
+		
+		/* Debug log */
+                ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
+    	                  "SecurePass: checking realm %s", w);
 
 		/* Walk through list of members, seeing if any match user login */
 		if (strcmp(realm,w)==0)
@@ -154,17 +158,25 @@ static int authz_securepass_check_user_access(request_rec *r)
 	w= ap_getword_white(r->pool, &t);
 
         /* Check if we have a realm
-         * and match
+         * and match the user
          */
 
 	if ( !strcasecmp(w, "sprealm"))
 	{
-	  /* dummy, check securepass realm */
 	  if (check_securepass_realm(r,t)){
-            printf("the check is ok\n");
-            return OK;
+
+	     /* Debug message, check_securepass_realm succeeded */
+             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
+    	                  "SecurePass user %s in realm list", r->user);
+
+	     /* Return authorized */
+             return OK;
           }
-         printf("the check is NOT ok\n");
+	  else {
+	     /* If we have debug active, print out that is not in list */
+             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
+    	                  "SecurePass user %s not in realm list", r->user);
+          }
 
 	}
     

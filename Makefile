@@ -6,7 +6,7 @@ APXS=apxs2
 
 build: mod_authz_securepass.la
 
-mod_authz_securepass.la:
+mod_authz_securepass.la: mod_authz_securepass.c
 	$(APXS) -c mod_authz_securepass.c
 
 install: build
