@@ -161,13 +161,12 @@ static int authz_securepass_check_user_access(request_rec *r)
 	{
 	  /* dummy, check securepass realm */
 	  if (check_securepass_realm(r,t)){
-          printf("the check is ok\n");
-          return 1;
-        }
+            printf("the check is ok\n");
+            return OK;
+          }
          printf("the check is NOT ok\n");
 
 	}
-    return DECLINED;
     
 	if ( !strcasecmp(w, "spgroup"))
 	{

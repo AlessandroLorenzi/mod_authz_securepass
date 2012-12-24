@@ -1,0 +1,1 @@
+LoadModule authz_securepass_module /usr/lib/apache2/modules/mod_authz_securepass.so
