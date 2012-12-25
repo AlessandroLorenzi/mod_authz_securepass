@@ -208,7 +208,3 @@ module AP_MODULE_DECLARE_DATA authz_securepass_module = {
     authz_securepass_register_hooks        /* register hooks */
 };
 
-
-
-
-
