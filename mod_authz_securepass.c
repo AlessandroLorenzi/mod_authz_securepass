@@ -188,47 +188,6 @@ static int authz_securepass_check_user_access(request_rec *r)
 	  /* dummy, check securepass group */
 	}
 
-	/* The 'file-group' directive causes mod_authz_owner to store the
-	 * group name of the file we are trying to access in a note attached
-	 * to the request.  It's our job to decide if the user actually is
-	 * in that group.  If the note is missing, we just ignore it.
-	 * Probably mod_authz_owner is not installed.
-	 */
-	if ( !strcasecmp(w, "file-group"))
-	{
-	    filegroup= apr_table_get(r->notes, AUTHZ_GROUP_NOTE);
-	    if (filegroup == NULL) continue;
-	}
-
-	if ( !strcmp(w,"group") || filegroup != NULL)
-	{
-	    required_group= 1;
-
-	    if (filegroup)
-	    {
-		/* Check if user is in the group that owns the file */
-		if (check_unix_group(r,filegroup))
-		    return OK;
-	    }
-	    else if (t[0])
-	    {
-		/* Pass rest of require line to authenticator */
-		if (check_unix_group(r,t))
-		    return OK;
-	    }
-	}
-    }
-    
-    /* If we didn't see a 'require group' or aren't authoritive, decline */
-    if (!required_group || !dir->authoritative)
-	return DECLINED;
-
-    /* Authentication failed and we are authoritive, declare unauthorized */
-    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
-    	"access to %s failed, reason: user %s not allowed access",
-    	r->uri, r->user);
-
-    ap_note_basic_auth_failure(r);
     return HTTP_UNAUTHORIZED;
 }
 
