@@ -41,7 +41,6 @@ typedef struct
 static int check_securepass_realm(request_rec *r, const char *realmlist)
 {
     // Al posto di questo fare il match del nome.
-    char **p;
     char *user= r->user;
     char *realm,*w, *at;
 
@@ -118,16 +117,6 @@ static const command_rec authz_securepass_cmds[] =
 };
 
 
-/* Check if the named user is in the given list of groups.  The list of
- * groups is a string with groups separated by white space.  Group ids
- * can either be unix group names or numeric group id numbers.  There must
- * be a unix login corresponding to the named user.
- */
-
-static int check_unix_group(request_rec *r, const char *grouplist)
-{
-	return 0;
-}
 
 
 static int authz_securepass_check_user_access(request_rec *r) 
@@ -136,11 +125,9 @@ static int authz_securepass_check_user_access(request_rec *r)
 	ap_get_module_config(r->per_dir_config, &authz_securepass_module);
 
     int m= r->method_number;
-    int required_group= 0;
     register int x;
     const char *t, *w;
     const apr_array_header_t *reqs_arr= ap_requires(r);
-    const char *filegroup= NULL;
     require_line *reqs;
 
 
@@ -153,81 +140,46 @@ static int authz_securepass_check_user_access(request_rec *r)
 
     /* Loop through the "Require" argument list */
     for(x= 0; x < reqs_arr->nelts; x++)
-    {
-	if (!(reqs[x].method_mask & (AP_METHOD_BIT << m))) continue;
-
-	t= reqs[x].requirement;
-	w= ap_getword_white(r->pool, &t);
-
-        /* Check if we have a realm
-         * and match the user
-         */
-
-	if ( !strcasecmp(w, "sprealm"))
 	{
-		printf("GO\n");
-	  if (check_securepass_realm(r,t)){
-		printf("GO\n");
-	     /* Debug message, check_securepass_realm succeeded */
-             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
-    	                  "SecurePass user %s in realm list", r->user);
+		if (!(reqs[x].method_mask & (AP_METHOD_BIT << m))) continue;
 
-	     /* Return authorized */
-             return OK;
-          }
-	  else {
-	     /* If we have debug active, print out that is not in list */
-             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
-    	                  "SecurePass user %s not in realm list", r->user);
-          }
+		t= reqs[x].requirement;
+		w= ap_getword_white(r->pool, &t);
 
-	}
-    
-	if ( !strcasecmp(w, "spgroup"))
-	{
-	  /* dummy, check securepass group */
-	}
+			/* Check if we have a realm
+			 * and match the user
+			 */
 
-	/* The 'file-group' directive causes mod_authz_owner to store the
-	 * group name of the file we are trying to access in a note attached
-	 * to the request.  It's our job to decide if the user actually is
-	 * in that group.  If the note is missing, we just ignore it.
-	 * Probably mod_authz_owner is not installed.
-	 */
-	if ( !strcasecmp(w, "file-group"))
-	{
-	    filegroup= apr_table_get(r->notes, AUTHZ_GROUP_NOTE);
-	    if (filegroup == NULL) continue;
-	}
+		if ( !strcasecmp(w, "sprealm"))
+		{
+			printf("GO\n");
+		  if (check_securepass_realm(r,t)){
+			printf("GO\n");
+			 /* Debug message, check_securepass_realm succeeded */
+				 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
+							  "SecurePass user %s in realm list", r->user);
 
-	if ( !strcmp(w,"group") || filegroup != NULL)
-	{
-	    required_group= 1;
+			 /* Return authorized */
+				 return OK;
+			  }
+		  else {
+			 /* If we have debug active, print out that is not in list */
+				 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
+							  "SecurePass user %s not in realm list", r->user);
+			  }
 
-	    if (filegroup)
-	    {
-		/* Check if user is in the group that owns the file */
-		if (check_unix_group(r,filegroup))
-		    return OK;
-	    }
-	    else if (t[0])
-	    {
-		/* Pass rest of require line to authenticator */
-		if (check_unix_group(r,t))
-		    return OK;
-	    }
-	}
+		}
+		
+		if ( !strcasecmp(w, "spgroup"))
+		{
+		  /* dummy, check securepass group */
+		}
+
+		
     }
     
-    /* If we didn't see a 'require group' or aren't authoritive, decline */
-    if (!required_group || !dir->authoritative)
-	return DECLINED;
-
-    /* Authentication failed and we are authoritive, declare unauthorized */
-    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
-    	"access to %s failed, reason: user %s not allowed access",
-    	r->uri, r->user);
-
+    
+    
     ap_note_basic_auth_failure(r);
     return HTTP_UNAUTHORIZED;
 }
