@@ -21,5 +21,5 @@ install_redhat: mod_authz_securepass.c
 	
 clean:
 	rm -rf .libs
-	rm mod_authz_securepass.lo  mod_authz_securepass.la  mod_authz_securepass.slo mod_authz_securepass.o
+	rm -rf mod_authz_securepass.lo  mod_authz_securepass.la  mod_authz_securepass.slo mod_authz_securepass.o
 
