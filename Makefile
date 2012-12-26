@@ -2,7 +2,7 @@
 ## Build the securepass module
 ##
 
-APXS=apxs
+APXS=apxs2
 
 build: mod_authz_securepass.la
 
@@ -17,9 +17,10 @@ mod_authz_securepass.la: mod_authz_securepass.c
 #	rm -f /etc/apache2/mods-available/securepass.load 
 #	rm -f /usr/lib/apache2/modules/mod_authz_securepass.so
 
-install_redhat: build
+install_redhat: APXS=apxs
+	build
 	$(APXS) -i -a mod_authz_securepass.la
-	echo "LoadModule authz_securepass_module /etc/httpd/modules/mod_authz_securepass.so" >> /etc/httpd/conf.d/mod_authz_securepass.conf
+	echo "LoadModule authz_securepass_module /etc/httpd/modules/mod_authz_securepass.so" > /etc/httpd/conf.d/mod_authz_securepass.conf
 
 clean:
 	rm -rf .libs
