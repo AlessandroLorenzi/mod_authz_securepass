@@ -16,7 +16,7 @@ install_debian: mod_authz_securepass.c
 install_redhat: mod_authz_securepass.c
 	apxs -c mod_authz_securepass.c
 	apxs -i -a mod_authz_securepass.la
-	echo "LoadModule authz_securepass_module /etc/httpd/modules/mod_authz_securepass.so" > /etc/httpd/conf.d/mod_authz_securepass.conf
+	#echo "LoadModule authz_securepass_module /etc/httpd/modules/mod_authz_securepass.so" > /etc/httpd/conf.d/mod_authz_securepass.conf
 
 	
 clean:
