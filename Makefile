@@ -2,7 +2,7 @@
 ## Build the securepass module
 ##
 
-APXS=apxs2
+APXS=apxs
 
 build: mod_authz_securepass.la
 
