@@ -49,7 +49,7 @@ static int check_securepass_realm(request_rec *r, const char *realmlist)
     realm=strchr(user,'@');
     realm++;
 
-	printf ("User %s realm %s \n", user, realm);
+	#ap_log_rerror ("User %s realm %s \n", user, realm);
 	
     /* Loop through list of realms passed in */
     while (*realmlist != '\0')
@@ -152,9 +152,7 @@ static int authz_securepass_check_user_access(request_rec *r)
 
 		if ( !strcasecmp(w, "sprealm"))
 		{
-			printf("GO\n");
 		  if (check_securepass_realm(r,t)){
-			printf("GO\n");
 			 /* Debug message, check_securepass_realm succeeded */
 				 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
 							  "SecurePass user %s in realm list", r->user);
