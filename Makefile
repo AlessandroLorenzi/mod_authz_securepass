@@ -8,7 +8,7 @@
 
 install_debian: mod_authz_securepass.c
 	apxs2 -c mod_authz_securepass.c
-	apxs2 -i -a mod_authz_securepass.la
+	#apxs2 -i -a mod_authz_securepass.la
 	install -m 644 .libs/mod_authz_securepass.so /usr/lib/apache2/modules/
 	install -m 644 securepass.load /etc/apache2/mods-available
 
