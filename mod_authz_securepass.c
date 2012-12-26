@@ -49,7 +49,7 @@ static int check_securepass_realm(request_rec *r, const char *realmlist)
     realm=strchr(user,'@');
     realm++;
 
-	#ap_log_rerror ("User %s realm %s \n", user, realm);
+	//ap_log_rerror ("User %s realm %s \n", user, realm);
 	
     /* Loop through list of realms passed in */
     while (*realmlist != '\0')
