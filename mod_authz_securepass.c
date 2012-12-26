@@ -125,6 +125,7 @@ static int authz_securepass_check_user_access(request_rec *r)
 	ap_get_module_config(r->per_dir_config, &authz_securepass_module);
 
     int m= r->method_number;
+    int required_group= 0;	
     register int x;
     const char *t, *w;
     const apr_array_header_t *reqs_arr= ap_requires(r);
@@ -176,7 +177,11 @@ static int authz_securepass_check_user_access(request_rec *r)
 		
     }
     
-    
+    /* If we didn't see a 'require group' or aren't authoritive, decline */
+    if (!required_group || !dir->authoritative)
+		return DECLINED;
+    /* Authentication failed and we are authoritive, declare unauthorized */
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "access to %s failed, reason: user %s not allowed access", r->uri, r->user);
     
     ap_note_basic_auth_failure(r);
     return HTTP_UNAUTHORIZED;
