@@ -4,25 +4,18 @@
 
 
 
-set_redhat:
-	APXS=apxs
 
-set_debian:
-	APXS=apxs
 
-build: mod_authz_securepass.la
-
-mod_authz_securepass.la: mod_authz_securepass.c
-	$(APXS) -c mod_authz_securepass.c
-
-install_debian: set_debian build
-	$(APXS) -i -a mod_authz_securepass.la
+install_debian: mod_authz_securepass.c
+	apxs2 -c mod_authz_securepass.c
+	apxs2 -i -a mod_authz_securepass.la
 	install -m 644 .libs/mod_authz_securepass.so /usr/lib/apache2/modules/
 	install -m 644 securepass.load /etc/apache2/mods-available
 
 
-install_redhat: set_redhat build
-	$(APXS) -i -a mod_authz_securepass.la
+install_redhat: mod_authz_securepass.c
+	apxs -c mod_authz_securepass.c
+	apxs -i -a mod_authz_securepass.la
 	echo "LoadModule authz_securepass_module /etc/httpd/modules/mod_authz_securepass.so" > /etc/httpd/conf.d/mod_authz_securepass.conf
 
 	
