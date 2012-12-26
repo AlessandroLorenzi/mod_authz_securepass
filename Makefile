@@ -20,7 +20,7 @@ mod_authz_securepass.la: mod_authz_securepass.c
 install_redhat: build
 	$(APXS) -i -a mod_authz_securepass.la
 	install -m 644 securepass.load /etc/httpd/conf.d/securepass.conf
-	
+	echo "LoadModule authz_securepass_module /etc/httpd/modules/mod_authz_securepass.so"
 
 clean:
 	rm -rf .libs
