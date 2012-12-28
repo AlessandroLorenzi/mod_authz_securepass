@@ -1,0 +1,59 @@
+Now we have to install mod_authz_securepass. There isn't yet a 
+ready to use package avaiable, but compile it is really simple.
+We need apxs (APache eXtenSion tool) usually provided with the
+development package of Apache.
+
+For Debian-like distro install it with
+
+apt-get install apache2-prefork-dev 
+# or
+apt-get install apache2-threaded-dev
+
+or with RedHat
+
+yum install httpd-devel
+
+Now download the source from git from the stable branch
+
+git clone https://github.com/AlessandroLorenzi/mod_authz_securepass.git -b master
+cd mod_authz_securepass
+
+The following code will compile and install the module
+
+make install_redhat
+
+or in debian distro:
+
+make install_debian
+a2enmod securepass
+
+Configuring mod_auth_securepass
+
+First we need to configure Apache to use cas. Follow the guide:
+http://support.secure-pass.net/wiki/index.php/Apache
+
+Is bossible to configure SecurePass module into .htaccess
+
+<Location />
+    Order allow,deny
+    allow from all
+    AuthzSecurepass On
+    AuthType CAS
+    AuthName "private area"
+    Require sprealm garl.ch partner.it
+<Location>
+
+In this example both user@garl.ch and otheruser@partner.it
+are allowed to access into site.
+
+Take care to activate module
+
+    AuthzSecurepass On
+
+and set allowed realms
+
+    Require sprealm garl.ch partner.it
+
+Done!
+For further info Alessandro Lorenzi <alorenzi@garl.ch>
+
