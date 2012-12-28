@@ -11,3 +11,7 @@ This module is intended to restrict access to the published resource by:
 * (in future) allowing only specific SecurePass group(s) to access the Apache resource
 
 More on SecurePass: http://www.secure-pass.net
+
+For install guide please read INSTALL file.
+
+
