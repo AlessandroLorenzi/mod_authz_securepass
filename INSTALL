@@ -11,7 +11,7 @@ apt-get install apache2-threaded-dev
 
 or with RedHat
 
-yum install httpd-devel
+yum install -y httpd-devel make gcc
 
 Now download the source from git from the stable branch
 
