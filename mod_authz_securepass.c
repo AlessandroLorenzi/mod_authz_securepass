@@ -1,3 +1,9 @@
+/*
+ *  
+ * Author: Alessandro Lorenzi <alorenzi@alorenzi.eu>
+ *  
+ */
+
 #include "apr_lib.h"
 
 #include "ap_config.h"
